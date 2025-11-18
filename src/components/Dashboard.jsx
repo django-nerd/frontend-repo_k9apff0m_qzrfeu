@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 
 export default function Dashboard({ dataset }) {
   const backend = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
@@ -6,23 +6,22 @@ export default function Dashboard({ dataset }) {
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
 
-  useEffect(() => {
+  const handleAnalyze = async () => {
     if (!dataset?.dataset_id) return
-    const fetchSummary = async () => {
-      try {
-        setLoading(true)
-        const res = await fetch(`${backend}/analysis/summary/${dataset.dataset_id}`)
-        if (!res.ok) throw new Error(await res.text())
-        const data = await res.json()
-        setSummary(data)
-      } catch (e) {
-        setErr(e.message)
-      } finally {
-        setLoading(false)
-      }
+    try {
+      setLoading(true)
+      setErr('')
+      setSummary(null)
+      const res = await fetch(`${backend}/analysis/summary/${dataset.dataset_id}`)
+      if (!res.ok) throw new Error(await res.text())
+      const data = await res.json()
+      setSummary(data)
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setLoading(false)
     }
-    fetchSummary()
-  }, [dataset, backend])
+  }
 
   const charts = useMemo(() => {
     if (!summary) return null
@@ -51,12 +50,16 @@ export default function Dashboard({ dataset }) {
 
   return (
     <section className="max-w-6xl mx-auto px-6 py-8">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-3">
         <h3 className="text-white text-xl font-bold">Dataset: {dataset?.dataset_id?.slice(0,8)}</h3>
-        <a href={`${backend}/export/summary/${dataset.dataset_id}.csv`} className="text-blue-300 hover:text-blue-200 underline">Export Summary CSV</a>
+        <div className="flex items-center gap-2">
+          <button onClick={handleAnalyze} disabled={loading} className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white px-3 py-2 rounded">
+            {loading ? 'Analyzing…' : 'Analyze'}
+          </button>
+        </div>
       </div>
-      {loading && <p className="text-slate-300">Loading summary...</p>}
-      {err && <p className="text-red-400">{err}</p>}
+      {err && <p className="text-red-400 mb-2">{err}</p>}
+      {!summary && !loading && <p className="text-slate-300">Click Analyze to compute summaries and anomalies.</p>}
       {summary && charts}
     </section>
   )
